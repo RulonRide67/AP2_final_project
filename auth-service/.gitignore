@@ -29,9 +29,10 @@ coverage.html
 .DS_Store
 Thumbs.db
 
-# Generated
-api/gen/
+# Generated protobuf / gRPC
+internal/delivery/grpc/gen/
 *.pb.go
+*.pb.validate.go
 
 # Docker
 deployments/.env

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package auth.v1;
 
-option go_package = "github.com/madiyar/final-project/auth-service/api/gen/auth/v1;authv1";
+option go_package = "github.com/madiyar/final-project/auth-service/internal/delivery/grpc/gen/auth/v1;authv1";
 
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";

@@ -1,7 +1,7 @@
 version: v2
 
 modules:
-  - path: .
+  - path: api/proto
     name: buf.build/madiyar/auth-service
 
 deps:

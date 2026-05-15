@@ -141,13 +141,18 @@ Field validation uses [protoc-gen-validate](https://github.com/envoyproxy/protoc
 
 ### Generate code
 
+Buf config lives at the **service root** (`buf.yaml`, `buf.gen.yaml`). Protos are under `api/proto/`. Generated Go code is written to `internal/delivery/grpc/gen/`.
+
 ```bash
+# From auth-service/ (not api/proto/)
 # Install Buf: https://buf.build/docs/installation
-make proto-install   # Go plugins (protoc-gen-go, grpc, validate)
+make proto-install   # Go plugins (protoc-gen-validate must be on PATH)
 make proto-deps      # fetch validate.proto dependency
-make proto           # -> api/gen/auth/v1/*.pb.go
+make proto           # -> internal/delivery/grpc/gen/auth/v1/*.pb.go
 make proto-lint      # lint protos
 ```
+
+Or directly: `buf dep update && buf generate` (run from `auth-service/`).
 
 Alternative without Buf: `make proto-protoc` (set `PROTOC_VALIDATE_INCLUDE`).
 
