@@ -97,13 +97,45 @@ Dependencies point inward: delivery and infrastructure depend on use cases; use 
 
 Run `make help` for the full list (`build`, `test`, `docker-up`, `proto`, etc.).
 
+## gRPC API (Protobuf)
+
+Service definition: `api/proto/auth/v1/auth.proto`
+
+| RPC | Description |
+|-----|-------------|
+| `Register` | Create account + return tokens |
+| `Login` | Authenticate + return tokens |
+| `Logout` | Revoke session / refresh token |
+| `RefreshToken` | Issue new access token |
+| `ValidateToken` | Introspect access token (for gateways) |
+| `GetProfile` | Current user profile (Bearer metadata) |
+| `UpdateProfile` | Update name fields |
+| `ChangePassword` | Change password (authenticated) |
+| `SendVerificationEmail` | Send verification email |
+| `VerifyEmail` | Confirm email with token |
+| `ForgotPassword` | Start password reset |
+| `ResetPassword` | Complete password reset |
+
+Field validation uses [protoc-gen-validate](https://github.com/envoyproxy/protoc-gen-validate) (`validate.rules` annotations).
+
+### Generate code
+
+```bash
+# Install Buf: https://buf.build/docs/installation
+make proto-install   # Go plugins (protoc-gen-go, grpc, validate)
+make proto-deps      # fetch validate.proto dependency
+make proto           # -> api/gen/auth/v1/*.pb.go
+make proto-lint      # lint protos
+```
+
+Alternative without Buf: `make proto-protoc` (set `PROTOC_VALIDATE_INCLUDE`).
+
 ## Next steps (implementation)
 
-- Define protobuf services under `api/proto/auth/v1/`.
 - Implement domain entities and repository interfaces.
 - Wire use cases in `cmd/auth/main.go`.
 - Add SQL migrations under `migrations/`.
-- Generate gRPC stubs (`make proto`) and implement handlers.
+- Implement gRPC handlers against generated stubs (`make proto`).
 
 ## License
 

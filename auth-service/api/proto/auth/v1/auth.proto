@@ -1,0 +1,242 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "github.com/madiyar/final-project/auth-service/api/gen/auth/v1;authv1";
+
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+// AuthService provides user authentication and profile management over gRPC.
+// Endpoints that require authentication expect a Bearer access token in gRPC metadata:
+//   authorization: Bearer <access_token>
+service AuthService {
+  // Register creates a new user account and returns tokens.
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // Login authenticates credentials and returns tokens.
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  // Logout invalidates the current session (refresh token).
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+
+  // RefreshToken issues a new access token using a valid refresh token.
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+
+  // ValidateToken checks whether an access token is valid and returns claims.
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+
+  // GetProfile returns the authenticated user's profile.
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+
+  // UpdateProfile updates profile fields for the authenticated user.
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+
+  // ChangePassword changes the password for the authenticated user.
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+
+  // SendVerificationEmail sends (or resends) an email verification link.
+  rpc SendVerificationEmail(SendVerificationEmailRequest) returns (SendVerificationEmailResponse);
+
+  // VerifyEmail confirms a user's email using a verification token.
+  rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailResponse);
+
+  // ForgotPassword initiates a password reset flow for the given email.
+  rpc ForgotPassword(ForgotPasswordRequest) returns (ForgotPasswordResponse);
+
+  // ResetPassword sets a new password using a reset token from email.
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Shared types
+// ---------------------------------------------------------------------------
+
+// User is the public representation of an account (no password fields).
+message User {
+  string id = 1 [(validate.rules).string = {uuid: true}];
+  string email = 2 [(validate.rules).string = {email: true, max_len: 255}];
+  string first_name = 3 [(validate.rules).string = {max_len: 100}];
+  string last_name = 4 [(validate.rules).string = {max_len: 100}];
+  bool email_verified = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// TokenPair holds JWT access and refresh tokens returned by auth endpoints.
+message TokenPair {
+  string access_token = 1 [(validate.rules).string = {min_len: 1}];
+  string refresh_token = 2 [(validate.rules).string = {min_len: 1}];
+  // Access token lifetime in seconds.
+  int64 expires_in = 3 [(validate.rules).int64 = {gt: 0}];
+  string token_type = 4 [(validate.rules).string = {in: ["Bearer"]}];
+}
+
+// TokenClaims describes validated access-token payload (for gateways / other services).
+message TokenClaims {
+  string user_id = 1 [(validate.rules).string = {uuid: true}];
+  string email = 2 [(validate.rules).string = {email: true, max_len: 255}];
+  bool email_verified = 3;
+  google.protobuf.Timestamp issued_at = 4;
+  google.protobuf.Timestamp expires_at = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Register
+// ---------------------------------------------------------------------------
+
+message RegisterRequest {
+  string email = 1 [(validate.rules).string = {email: true, max_len: 255}];
+  string password = 2 [(validate.rules).string = {min_len: 8, max_len: 128}];
+  string first_name = 3 [(validate.rules).string = {min_len: 1, max_len: 100}];
+  string last_name = 4 [(validate.rules).string = {min_len: 1, max_len: 100}];
+}
+
+message RegisterResponse {
+  User user = 1;
+  TokenPair tokens = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Login
+// ---------------------------------------------------------------------------
+
+message LoginRequest {
+  string email = 1 [(validate.rules).string = {email: true, max_len: 255}];
+  string password = 2 [(validate.rules).string = {min_len: 1, max_len: 128}];
+}
+
+message LoginResponse {
+  User user = 1;
+  TokenPair tokens = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Logout
+// ---------------------------------------------------------------------------
+
+message LogoutRequest {
+  // Refresh token to revoke. If empty, server may revoke using metadata access token.
+  string refresh_token = 1 [(validate.rules).string = {max_len: 4096}];
+}
+
+message LogoutResponse {
+  bool success = 1;
+}
+
+// ---------------------------------------------------------------------------
+// RefreshToken
+// ---------------------------------------------------------------------------
+
+message RefreshTokenRequest {
+  string refresh_token = 1 [(validate.rules).string = {min_len: 1, max_len: 4096}];
+}
+
+message RefreshTokenResponse {
+  TokenPair tokens = 1;
+}
+
+// ---------------------------------------------------------------------------
+// ValidateToken
+// ---------------------------------------------------------------------------
+
+message ValidateTokenRequest {
+  string access_token = 1 [(validate.rules).string = {min_len: 1, max_len: 4096}];
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  TokenClaims claims = 2;
+}
+
+// ---------------------------------------------------------------------------
+// GetProfile
+// ---------------------------------------------------------------------------
+
+// Empty: user identity is taken from gRPC metadata (authorization Bearer token).
+message GetProfileRequest {}
+
+message GetProfileResponse {
+  User user = 1;
+}
+
+// ---------------------------------------------------------------------------
+// UpdateProfile
+// ---------------------------------------------------------------------------
+
+message UpdateProfileRequest {
+  optional string first_name = 1 [(validate.rules).string = {ignore_empty: true, min_len: 1, max_len: 100}];
+  optional string last_name = 2 [(validate.rules).string = {ignore_empty: true, min_len: 1, max_len: 100}];
+}
+
+message UpdateProfileResponse {
+  User user = 1;
+}
+
+// ---------------------------------------------------------------------------
+// ChangePassword
+// ---------------------------------------------------------------------------
+
+message ChangePasswordRequest {
+  string current_password = 1 [(validate.rules).string = {min_len: 1, max_len: 128}];
+  string new_password = 2 [(validate.rules).string = {min_len: 8, max_len: 128}];
+}
+
+message ChangePasswordResponse {
+  bool success = 1;
+}
+
+// ---------------------------------------------------------------------------
+// SendVerificationEmail
+// ---------------------------------------------------------------------------
+
+message SendVerificationEmailRequest {
+  // Optional when called by an authenticated user; required for admin/resend-by-email flows.
+  string email = 1 [(validate.rules).string = {ignore_empty: true, email: true, max_len: 255}];
+}
+
+message SendVerificationEmailResponse {
+  bool sent = 1;
+  // When false, email may already be verified or rate-limited (see application errors).
+  string message = 2 [(validate.rules).string = {max_len: 512}];
+}
+
+// ---------------------------------------------------------------------------
+// VerifyEmail
+// ---------------------------------------------------------------------------
+
+message VerifyEmailRequest {
+  string token = 1 [(validate.rules).string = {min_len: 32, max_len: 512}];
+}
+
+message VerifyEmailResponse {
+  bool verified = 1;
+  User user = 2;
+}
+
+// ---------------------------------------------------------------------------
+// ForgotPassword
+// ---------------------------------------------------------------------------
+
+message ForgotPasswordRequest {
+  string email = 1 [(validate.rules).string = {email: true, max_len: 255}];
+}
+
+message ForgotPasswordResponse {
+  // Always true from client perspective to avoid email enumeration.
+  bool accepted = 1;
+  string message = 2 [(validate.rules).string = {max_len: 512}];
+}
+
+// ---------------------------------------------------------------------------
+// ResetPassword
+// ---------------------------------------------------------------------------
+
+message ResetPasswordRequest {
+  string token = 1 [(validate.rules).string = {min_len: 32, max_len: 512}];
+  string new_password = 2 [(validate.rules).string = {min_len: 8, max_len: 128}];
+}
+
+message ResetPasswordResponse {
+  bool success = 1;
+}

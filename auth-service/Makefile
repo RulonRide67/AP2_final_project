@@ -1,9 +1,17 @@
-.PHONY: help deps tidy lint test build run docker-up docker-down migrate-up migrate-down proto
+.PHONY: help deps tidy lint test build run docker-up docker-down migrate-up migrate-down \
+	proto proto-install proto-deps proto-lint proto-breaking proto-clean docker-build
 
 APP_NAME := auth-service
 CMD := ./cmd/auth
 BINARY := bin/$(APP_NAME)
 DOCKER_COMPOSE := docker compose -f deployments/docker-compose.yml
+
+# Protobuf / Buf
+BUF            ?= buf
+PROTO_ROOT     := api/proto
+PROTO_FILE     := $(PROTO_ROOT)/auth/v1/auth.proto
+GEN_DIR        := api/gen
+BUF_GEN_FILE   := $(PROTO_ROOT)/buf.gen.yaml
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -42,9 +50,46 @@ migrate-up: ## Apply database migrations (implement migrate tool)
 migrate-down: ## Roll back database migrations
 	@echo "TODO: wire golang-migrate or goose"
 
-proto: ## Generate gRPC code from protobuf definitions
-	@echo "TODO: buf generate or protoc -I api/proto ..."
+# ---------------------------------------------------------------------------
+# Protobuf generation (Buf + protoc-gen-go + protoc-gen-go-grpc + protoc-gen-validate)
+# ---------------------------------------------------------------------------
 
-.PHONY: docker-build
+proto-install: ## Install Buf CLI and Go protoc plugins (validate, go, grpc)
+	@echo "Installing protoc plugins..."
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.2
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+	go install github.com/envoyproxy/protoc-gen-validate/cmd/protoc-gen-validate@v1.1.0
+	@echo "Install Buf from https://buf.build/docs/installation if not present: $(BUF)"
+
+proto-deps: ## Pull protobuf dependencies (protoc-gen-validate validate.proto)
+	cd $(PROTO_ROOT) && $(BUF) dep update
+
+proto-lint: proto-deps ## Lint protobuf files
+	cd $(PROTO_ROOT) && $(BUF) lint
+
+proto-breaking: proto-deps ## Check for breaking changes against main
+	cd $(PROTO_ROOT) && $(BUF) breaking --against '.git#branch=main'
+
+proto-clean: ## Remove generated protobuf Go code
+	rm -rf $(GEN_DIR)
+
+proto: proto-install proto-deps ## Generate Go gRPC stubs and PGV validation code
+	@mkdir -p $(GEN_DIR)
+	cd $(PROTO_ROOT) && $(BUF) generate
+	@echo "Generated: $(GEN_DIR)/auth/v1/"
+
+# Fallback: raw protoc (no Buf CLI). Set PROTOC_INCLUDE to protoc-gen-validate include path.
+.PHONY: proto-protoc
+proto-protoc: proto-install ## Generate via protoc directly (alternative to buf generate)
+	@test -n "$(PROTOC_VALIDATE_INCLUDE)" || (echo "Set PROTOC_VALIDATE_INCLUDE to protoc-gen-validate include dir (e.g. $$(go list -m -f '{{.Dir}}' github.com/envoyproxy/protoc-gen-validate)/validate)" && exit 1)
+	@mkdir -p $(GEN_DIR)/auth/v1
+	protoc \
+		-I $(PROTO_ROOT) \
+		-I $(PROTOC_VALIDATE_INCLUDE)/.. \
+		--go_out=$(GEN_DIR) --go_opt=paths=source_relative \
+		--go-grpc_out=$(GEN_DIR) --go-grpc_opt=paths=source_relative \
+		--validate_out=lang=go,paths=source_relative:$(GEN_DIR) \
+		$(PROTO_FILE)
+
 docker-build: ## Build application Docker image
 	docker build -f deployments/docker/Dockerfile -t $(APP_NAME):latest .
