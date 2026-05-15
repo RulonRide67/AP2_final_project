@@ -4,7 +4,7 @@
 APP_NAME := auth-service
 CMD := ./cmd/auth
 BINARY := bin/$(APP_NAME)
-DOCKER_COMPOSE := docker compose -f deployments/docker-compose.yml
+DOCKER_COMPOSE := docker compose
 
 # Protobuf / Buf
 BUF            ?= buf
@@ -44,11 +44,13 @@ docker-down: ## Stop infrastructure containers
 docker-logs: ## Tail docker-compose logs
 	$(DOCKER_COMPOSE) logs -f
 
-migrate-up: ## Apply database migrations (implement migrate tool)
-	@echo "TODO: wire golang-migrate or goose"
+migrate-up: ## Apply database migrations (requires golang-migrate CLI)
+	@test -n "$$DATABASE_URL" || (echo "Set DATABASE_URL in .env (see .env.example)" && exit 1)
+	migrate -path migrations -database "$$DATABASE_URL" up
 
-migrate-down: ## Roll back database migrations
-	@echo "TODO: wire golang-migrate or goose"
+migrate-down: ## Roll back the last database migration
+	@test -n "$$DATABASE_URL" || (echo "Set DATABASE_URL in .env (see .env.example)" && exit 1)
+	migrate -path migrations -database "$$DATABASE_URL" down 1
 
 # ---------------------------------------------------------------------------
 # Protobuf generation (Buf + protoc-gen-go + protoc-gen-go-grpc + protoc-gen-validate)

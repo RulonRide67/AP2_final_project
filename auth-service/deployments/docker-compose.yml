@@ -1,70 +1,7 @@
-services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-auth}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-auth_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-auth_db}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-auth}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  nats:
-    image: nats:2.10-alpine
-    command: ["-js", "-m", "8222"]
-    ports:
-      - "4222:4222"
-      - "8222:8222"
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8222/healthz"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  prometheus:
-    image: prom/prometheus:v2.54.1
-    ports:
-      - "${PROMETHEUS_PORT:-9091}:9090"
-    volumes:
-      - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  grafana:
-    image: grafana/grafana:11.2.0
-    ports:
-      - "${GRAFANA_PORT:-3000}:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-    volumes:
-      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
-
-volumes:
-  postgres_data:
-  redis_data:
-  prometheus_data:
-  grafana_data:
+# Moved to project root. Run from auth-service/:
+#
+#   docker compose up -d
+#
+# Or explicitly:
+#
+#   docker compose -f ../docker-compose.yml up -d

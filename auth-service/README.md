@@ -78,20 +78,41 @@ Dependencies point inward: delivery and infrastructure depend on use cases; use 
    cp .env.example .env
    ```
 
-2. Start infrastructure:
+2. Start infrastructure (Postgres, Redis, NATS from `docker-compose.yml`):
 
    ```bash
    make docker-up
    ```
 
-3. Install dependencies and build:
+3. Run migrations:
+
+   ```bash
+   # Install: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+   cp .env.example .env
+   make migrate-up
+   ```
+
+4. Install dependencies and build:
 
    ```bash
    make deps
    make build
    ```
 
-4. Prometheus: `http://localhost:9091` · Grafana: `http://localhost:3000` (see `.env.example`).
+5. Observability (optional): `docker compose --profile observability up -d`  
+   Prometheus: `http://localhost:9091` · Grafana: `http://localhost:3000`
+
+### `users` table (migration `000001`)
+
+| Column         | Type         | Notes                          |
+|----------------|--------------|--------------------------------|
+| `id`           | UUID (PK)    | `gen_random_uuid()` default    |
+| `username`     | VARCHAR(64)  | unique                         |
+| `email`        | VARCHAR(255) | unique                         |
+| `password_hash`| VARCHAR(255) | bcrypt/argon2 hash             |
+| `is_verified`  | BOOLEAN      | default `false`                |
+| `created_at`   | TIMESTAMP    | UTC default                    |
+| `updated_at`   | TIMESTAMP    | UTC default                    |
 
 ## Makefile targets
 
