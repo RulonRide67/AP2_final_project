@@ -40,6 +40,22 @@ func (m *mockUseCase) GetProfile(ctx context.Context, id uuid.UUID) (*entity.Use
 	return m.profile(ctx, id)
 }
 
+func (m *mockUseCase) SendVerificationEmail(context.Context, usecase.SendVerificationEmailInput) error {
+	return nil
+}
+
+func (m *mockUseCase) VerifyEmail(context.Context, usecase.VerifyEmailInput) (*entity.User, error) {
+	return nil, nil
+}
+
+func (m *mockUseCase) ForgotPassword(context.Context, usecase.ForgotPasswordInput) error {
+	return nil
+}
+
+func (m *mockUseCase) ResetPassword(context.Context, usecase.ResetPasswordInput) error {
+	return nil
+}
+
 type mockTokenValidator struct{}
 
 func (mockTokenValidator) ValidateAccessToken(string) (*jwtsvc.Claims, error) {
