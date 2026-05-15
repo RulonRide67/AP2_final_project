@@ -113,6 +113,11 @@ func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string, user 
 	return s.IssueTokenPair(ctx, user)
 }
 
+// UserIDFromRefreshToken returns the user ID bound to a refresh token in Redis.
+func (s *Service) UserIDFromRefreshToken(ctx context.Context, refreshToken string) (uuid.UUID, error) {
+	return s.refreshStore.GetUserID(ctx, refreshToken)
+}
+
 // RevokeRefreshToken removes a refresh token from Redis (logout).
 func (s *Service) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
 	return s.refreshStore.Delete(ctx, refreshToken)
