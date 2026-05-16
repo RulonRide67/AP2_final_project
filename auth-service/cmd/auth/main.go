@@ -14,6 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
 	grpchandler "github.com/madiyar/final-project/auth-service/internal/auth/delivery/grpc"
 	"github.com/madiyar/final-project/auth-service/internal/auth/jwt"
@@ -111,6 +112,7 @@ func run() error {
 		),
 	)
 	authv1.RegisterAuthServiceServer(grpcServer, authHandler)
+	reflection.Register(grpcServer)
 
 	lis, err := net.Listen("tcp", cfg.GRPCAddr())
 	if err != nil {

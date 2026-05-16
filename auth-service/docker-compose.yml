@@ -105,8 +105,6 @@ services:
     image: prom/prometheus:v2.54.1
     container_name: auth-prometheus
     restart: unless-stopped
-    profiles:
-      - observability
     ports:
       - "${PROMETHEUS_PORT:-9091}:9090"
     volumes:
@@ -121,8 +119,6 @@ services:
     image: grafana/grafana:11.2.0
     container_name: auth-grafana
     restart: unless-stopped
-    profiles:
-      - observability
     env_file:
       - .env
     environment:
