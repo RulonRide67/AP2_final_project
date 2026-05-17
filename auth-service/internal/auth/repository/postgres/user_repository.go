@@ -29,12 +29,14 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 // Create inserts a new user. ID and timestamps may be set by the database.
 func (r *UserRepository) Create(ctx context.Context, user *entity.User) error {
 	const query = `
-		INSERT INTO users (username, email, password_hash, is_verified)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO users (username, first_name, last_name, email, password_hash, is_verified)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at, updated_at`
 
 	err := r.pool.QueryRow(ctx, query,
 		user.Username,
+		user.FirstName,
+		user.LastName,
 		user.Email,
 		user.PasswordHash,
 		user.IsVerified,
@@ -48,7 +50,7 @@ func (r *UserRepository) Create(ctx context.Context, user *entity.User) error {
 // GetByID returns a user by primary key.
 func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.User, error) {
 	const query = `
-		SELECT id, username, email, password_hash, is_verified, created_at, updated_at
+		SELECT id, username, first_name, last_name, email, password_hash, is_verified, created_at, updated_at
 		FROM users
 		WHERE id = $1`
 
@@ -58,7 +60,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Use
 // GetByEmail returns a user by email address.
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
 	const query = `
-		SELECT id, username, email, password_hash, is_verified, created_at, updated_at
+		SELECT id, username, first_name, last_name, email, password_hash, is_verified, created_at, updated_at
 		FROM users
 		WHERE email = $1`
 
@@ -68,7 +70,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*entity.
 // GetByUsername returns a user by username.
 func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*entity.User, error) {
 	const query = `
-		SELECT id, username, email, password_hash, is_verified, created_at, updated_at
+		SELECT id, username, first_name, last_name, email, password_hash, is_verified, created_at, updated_at
 		FROM users
 		WHERE username = $1`
 
@@ -79,11 +81,14 @@ func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*e
 func (r *UserRepository) Update(ctx context.Context, user *entity.User) error {
 	const query = `
 		UPDATE users
-		SET username = $2, email = $3, updated_at = (NOW() AT TIME ZONE 'UTC')
+		SET username = $2, first_name = $3, last_name = $4, email = $5,
+		    updated_at = (NOW() AT TIME ZONE 'UTC')
 		WHERE id = $1
 		RETURNING updated_at`
 
-	err := r.pool.QueryRow(ctx, query, user.ID, user.Username, user.Email).Scan(&user.UpdatedAt)
+	err := r.pool.QueryRow(ctx, query,
+		user.ID, user.Username, user.FirstName, user.LastName, user.Email,
+	).Scan(&user.UpdatedAt)
 	if err != nil {
 		return mapPgError(err)
 	}
@@ -156,6 +161,8 @@ func scanUser(row scannable) (*entity.User, error) {
 	err := row.Scan(
 		&u.ID,
 		&u.Username,
+		&u.FirstName,
+		&u.LastName,
 		&u.Email,
 		&u.PasswordHash,
 		&u.IsVerified,

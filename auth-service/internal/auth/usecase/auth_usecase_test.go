@@ -193,9 +193,10 @@ func TestRegisterAndLogin(t *testing.T) {
 	uc := newTestUseCase(t, repo, jwtMock, nil, pub)
 
 	reg, err := uc.Register(context.Background(), usecase.RegisterInput{
-		Username: "alice",
-		Email:    "alice@example.com",
-		Password: "password123",
+		FirstName: "Alice",
+		LastName:  "Smith",
+		Email:     "alice@example.com",
+		Password:  "password123",
 	})
 	if err != nil {
 		t.Fatalf("Register: %v", err)
@@ -208,9 +209,10 @@ func TestRegisterAndLogin(t *testing.T) {
 	}
 
 	_, err = uc.Register(context.Background(), usecase.RegisterInput{
-		Username: "alice2",
-		Email:    "alice@example.com",
-		Password: "password123",
+		FirstName: "Alice2",
+		LastName:  "Smith",
+		Email:     "alice@example.com",
+		Password:  "password123",
 	})
 	if !errors.Is(err, usecase.ErrUserAlreadyExists) {
 		t.Fatalf("expected ErrUserAlreadyExists, got %v", err)
@@ -244,9 +246,10 @@ func TestRefreshAndLogout(t *testing.T) {
 	uc := newTestUseCase(t, repo, jwtMock, nil, nil)
 
 	login, err := uc.Register(context.Background(), usecase.RegisterInput{
-		Username: "bob",
-		Email:    "bob@example.com",
-		Password: "secret",
+		FirstName: "Bob",
+		LastName:  "Test",
+		Email:     "bob@example.com",
+		Password:  "secret",
 	})
 	if err != nil {
 		t.Fatalf("Register: %v", err)
@@ -284,9 +287,10 @@ func TestGetProfile(t *testing.T) {
 	uc := newTestUseCase(t, repo, jwtMock, nil, nil)
 
 	reg, _ := uc.Register(context.Background(), usecase.RegisterInput{
-		Username: "carol",
-		Email:    "carol@example.com",
-		Password: "pass",
+		FirstName: "Carol",
+		LastName:  "Test",
+		Email:     "carol@example.com",
+		Password:  "pass",
 	})
 
 	profile, err := uc.GetProfile(context.Background(), reg.User.ID)
@@ -312,9 +316,10 @@ func TestEmailVerificationFlow(t *testing.T) {
 	uc := newTestUseCase(t, repo, newMockJWT(), mailer, pub)
 
 	reg, err := uc.Register(context.Background(), usecase.RegisterInput{
-		Username: "dave",
-		Email:    "dave@example.com",
-		Password: "password123",
+		FirstName: "Dave",
+		LastName:  "Test",
+		Email:     "dave@example.com",
+		Password:  "password123",
 	})
 	if err != nil {
 		t.Fatalf("Register: %v", err)
@@ -357,9 +362,10 @@ func TestPasswordResetFlow(t *testing.T) {
 	uc := newTestUseCase(t, repo, newMockJWT(), mailer, nil)
 
 	_, err := uc.Register(context.Background(), usecase.RegisterInput{
-		Username: "erin",
-		Email:    "erin@example.com",
-		Password: "oldpassword",
+		FirstName: "Erin",
+		LastName:  "Test",
+		Email:     "erin@example.com",
+		Password:  "oldpassword",
 	})
 	if err != nil {
 		t.Fatalf("Register: %v", err)

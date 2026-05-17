@@ -68,6 +68,18 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: auth-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - auth-net
+    profiles:
+      - maildev
+
   nats:
     image: nats:2.10-alpine
     container_name: auth-nats

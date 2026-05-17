@@ -27,6 +27,12 @@ func mapError(err error) error {
 		errors.Is(err, usecase.ErrInvalidToken):
 		return status.Error(codes.Unauthenticated, err.Error())
 
+	case errors.Is(err, usecase.ErrAlreadyVerified):
+		return status.Error(codes.FailedPrecondition, err.Error())
+
+	case errors.Is(err, usecase.ErrEmailSendFailed):
+		return status.Error(codes.Unavailable, err.Error())
+
 	case errors.Is(err, repository.ErrNotFound):
 		return status.Error(codes.NotFound, err.Error())
 

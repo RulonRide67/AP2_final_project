@@ -1,8 +1,6 @@
 package grpc
 
 import (
-	"strings"
-
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	jwtsvc "github.com/madiyar/final-project/auth-service/internal/auth/jwt"
@@ -11,34 +9,21 @@ import (
 	authv1 "github.com/madiyar/final-project/auth-service/internal/delivery/grpc/gen/auth/v1"
 )
 
-func buildUsername(firstName, lastName, email string) string {
-	first := strings.TrimSpace(firstName)
-	last := strings.TrimSpace(lastName)
-
-	var b strings.Builder
-	b.WriteString(strings.ToLower(first))
-	b.WriteString(strings.ToLower(last))
-	username := b.String()
-
-	if username != "" {
-		return username
-	}
-
-	if at := strings.Index(email, "@"); at > 0 {
-		return strings.ToLower(email[:at])
-	}
-	return strings.ToLower(email)
-}
-
 func toProtoUser(u *entity.User) *authv1.User {
 	if u == nil {
 		return nil
 	}
+	firstName := u.FirstName
+	lastName := u.LastName
+	// Fallback for accounts created before first_name/last_name columns existed.
+	if firstName == "" && lastName == "" && u.Username != "" {
+		firstName = u.Username
+	}
 	return &authv1.User{
 		Id:            u.ID.String(),
 		Email:         u.Email,
-		FirstName:     u.Username,
-		LastName:      "",
+		FirstName:     firstName,
+		LastName:      lastName,
 		EmailVerified: u.IsVerified,
 		CreatedAt:     timestamppb.New(u.CreatedAt),
 		UpdatedAt:     timestamppb.New(u.UpdatedAt),

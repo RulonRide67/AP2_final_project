@@ -25,6 +25,7 @@ import (
 	"github.com/madiyar/final-project/auth-service/internal/platform/config"
 	"github.com/madiyar/final-project/auth-service/internal/platform/logger"
 	metricssrv "github.com/madiyar/final-project/auth-service/internal/platform/metrics"
+	httpsrv "github.com/madiyar/final-project/auth-service/internal/platform/http"
 	"github.com/madiyar/final-project/auth-service/pkg/email"
 )
 
@@ -105,6 +106,17 @@ func run() error {
 
 	authHandler := grpchandler.NewAuthHandler(authUC, jwtSvc)
 
+	publicHTTPServer := httpsrv.NewServer(cfg.PublicHTTPAddr(), authUC)
+	go func() {
+		log.Info("public HTTP server listening",
+			zap.String("addr", cfg.PublicHTTPAddr()),
+			zap.String("verify_url", cfg.UseCase.VerifyEmailBaseURL),
+		)
+		if err := publicHTTPServer.Start(); err != nil {
+			log.Error("public HTTP server stopped", zap.Error(err))
+		}
+	}()
+
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			middleware.UnaryMetricsInterceptor(),
@@ -131,7 +143,7 @@ func run() error {
 		}
 	}()
 
-	waitForShutdown(log, grpcServer, metricsServer, pool, redisClient, natsConn)
+	waitForShutdown(log, grpcServer, metricsServer, publicHTTPServer, pool, redisClient, natsConn)
 	return nil
 }
 
@@ -190,6 +202,7 @@ func waitForShutdown(
 	log *zap.Logger,
 	grpcServer *grpc.Server,
 	metricsServer *metricssrv.Server,
+	publicHTTPServer *httpsrv.Server,
 	pool *pgxpool.Pool,
 	redisClient *redis.Client,
 	natsConn *nats.Conn,
@@ -217,6 +230,9 @@ func waitForShutdown(
 
 	if err := metricsServer.Shutdown(shutdownCtx); err != nil {
 		log.Error("metrics server shutdown", zap.Error(err))
+	}
+	if err := publicHTTPServer.Shutdown(shutdownCtx); err != nil {
+		log.Error("public HTTP server shutdown", zap.Error(err))
 	}
 
 	pool.Close()

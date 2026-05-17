@@ -21,7 +21,7 @@ type Config struct {
 	Password string
 	From     string
 	FromName string
-	// UseTLS enables direct TLS (port 465). When false, STARTTLS is used if supported.
+	// UseTLS: port 465 implicit TLS. Port 587 uses STARTTLS automatically.
 	UseTLS bool
 }
 
@@ -41,6 +41,8 @@ func NewClient(cfg Config) (*Client, error) {
 	if cfg.From == "" {
 		return nil, fmt.Errorf("smtp from address is required")
 	}
+	// Gmail app passwords are sometimes copied with spaces.
+	cfg.Password = strings.ReplaceAll(cfg.Password, " ", "")
 	return &Client{cfg: cfg}, nil
 }
 
@@ -96,13 +98,14 @@ func (c *Client) send(ctx context.Context, to, subject, htmlBody string) error {
 	addr := net.JoinHostPort(c.cfg.Host, strconv.Itoa(c.cfg.Port))
 	auth := smtpAuth(c.cfg)
 
-	if c.cfg.UseTLS {
-		return c.sendTLS(addr, auth, from, []string{to}, msg.Bytes())
+	// Port 465: implicit TLS (SMTPS). Port 587/25: STARTTLS (Gmail, Mailhog, etc.).
+	if c.cfg.Port == 465 || (c.cfg.UseTLS && c.cfg.Port != 587) {
+		return c.sendImplicitTLS(addr, auth, from, []string{to}, msg.Bytes())
 	}
-	return smtp.SendMail(addr, auth, from, []string{to}, msg.Bytes())
+	return c.sendSTARTTLS(addr, auth, from, []string{to}, msg.Bytes())
 }
 
-func (c *Client) sendTLS(addr string, auth smtp.Auth, from string, to []string, msg []byte) error {
+func (c *Client) sendImplicitTLS(addr string, auth smtp.Auth, from string, to []string, msg []byte) error {
 	tlsCfg := &tls.Config{ServerName: c.cfg.Host, MinVersion: tls.VersionTLS12}
 	conn, err := tls.Dial("tcp", addr, tlsCfg)
 	if err != nil {
@@ -116,9 +119,32 @@ func (c *Client) sendTLS(addr string, auth smtp.Auth, from string, to []string, 
 	}
 	defer client.Close()
 
+	return c.deliver(client, auth, from, to, msg)
+}
+
+func (c *Client) sendSTARTTLS(addr string, auth smtp.Auth, from string, to []string, msg []byte) error {
+	client, err := smtp.Dial(addr)
+	if err != nil {
+		return fmt.Errorf("smtp dial: %w", err)
+	}
+	defer client.Close()
+
+	if ok, _ := client.Extension("STARTTLS"); ok {
+		tlsCfg := &tls.Config{ServerName: c.cfg.Host, MinVersion: tls.VersionTLS12}
+		if err := client.StartTLS(tlsCfg); err != nil {
+			return fmt.Errorf("starttls: %w", err)
+		}
+	}
+
+	return c.deliver(client, auth, from, to, msg)
+}
+
+func (c *Client) deliver(client *smtp.Client, auth smtp.Auth, from string, to []string, msg []byte) error {
 	if auth != nil {
-		if err := client.Auth(auth); err != nil {
-			return fmt.Errorf("smtp auth: %w", err)
+		if ok, _ := client.Extension("AUTH"); ok {
+			if err := client.Auth(auth); err != nil {
+				return fmt.Errorf("smtp auth: %w", err)
+			}
 		}
 	}
 	if err := client.Mail(from); err != nil {
@@ -126,7 +152,7 @@ func (c *Client) sendTLS(addr string, auth smtp.Auth, from string, to []string, 
 	}
 	for _, rcpt := range to {
 		if err := client.Rcpt(rcpt); err != nil {
-			return fmt.Errorf("smtp rcpt: %w", err)
+			return fmt.Errorf("smtp rcpt %s: %w", rcpt, err)
 		}
 	}
 	w, err := client.Data()

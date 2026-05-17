@@ -45,9 +45,10 @@ type AuthUseCase interface {
 
 // RegisterInput holds data required to create an account.
 type RegisterInput struct {
-	Username string
-	Email    string
-	Password string
+	FirstName string
+	LastName  string
+	Email     string
+	Password  string
 }
 
 // LoginInput holds credentials for authentication.
@@ -143,7 +144,9 @@ func (uc *authUseCase) Register(ctx context.Context, in RegisterInput) (*AuthRes
 	}
 
 	user := &entity.User{
-		Username:     in.Username,
+		Username:     BuildUsername(in.FirstName, in.LastName, in.Email),
+		FirstName:    strings.TrimSpace(in.FirstName),
+		LastName:     strings.TrimSpace(in.LastName),
 		Email:        in.Email,
 		PasswordHash: passwordHash,
 		IsVerified:   false,
